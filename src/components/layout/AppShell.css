@@ -1,0 +1,10 @@
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+.main-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
