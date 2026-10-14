@@ -22,9 +22,10 @@ export default function LoginPage() {
 
 
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const user = login(username, password);
+    setError('');
+    const user = await login(username, password);
     if (user) {
       navigate(ROLE_HOME[user.role] || '/app/dashboard', { replace: true });
     } else {

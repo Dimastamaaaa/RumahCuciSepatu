@@ -1,6 +1,16 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { STAGES_STANDARD, STAGES_JEMPUT_ANTAR } from '../data/seedData';
+import { 
+  SEED_USERS, 
+  SEED_SERVICES, 
+  SEED_TRANSACTIONS, 
+  SEED_EXPENSES, 
+  SEED_FEEDBACKS, 
+  SEED_FAQ, 
+  SEED_TOKO,
+  STAGES_STANDARD, 
+  STAGES_JEMPUT_ANTAR 
+} from '../data/seedData';
 
 const AppContext = createContext(null);
 
@@ -10,60 +20,91 @@ const AppContext = createContext(null);
 
 const mapServiceToFE = (db) => ({
   ...db,
-  tampil_di_web: db.tampil_web
+  tampil_di_web: db.tampil_web !== undefined ? db.tampil_web : (db.tampil_di_web !== undefined ? db.tampil_di_web : true)
 });
 
 const mapTransactionToFE = (db) => ({
   ...db,
-  alamatJemput: db.alamat_jemput,
-  alamatAntar: db.alamat_antar,
-  jadwalJemput: db.jadwal_jemput,
-  statusBayar: db.status_bayar,
-  metodeBayar: db.metode_bayar,
-  biayaJemputAntar: db.biaya_jemput_antar,
-  createdBy: db.created_by
+  alamatJemput: db.alamat_jemput !== undefined ? db.alamat_jemput : db.alamatJemput,
+  alamatAntar: db.alamat_antar !== undefined ? db.alamat_antar : db.alamatAntar,
+  jadwalJemput: db.jadwal_jemput !== undefined ? db.jadwal_jemput : db.jadwalJemput,
+  statusBayar: db.status_bayar !== undefined ? db.status_bayar : db.statusBayar,
+  metodeBayar: db.metode_bayar !== undefined ? db.metode_bayar : db.metodeBayar,
+  biayaJemputAntar: db.biaya_jemput_antar !== undefined ? db.biaya_jemput_antar : (db.biayaJemputAntar || 0),
+  createdBy: db.created_by !== undefined ? db.created_by : db.createdBy
 });
 
 const mapShoeToFE = (db) => ({
   ...db,
   estimasi: db.estimasi,
-  fotoAwal: db.foto_awal,
-  fotoAkhir: db.foto_akhir
+  fotoAwal: db.foto_awal || db.fotoAwal || null,
+  fotoAkhir: db.foto_akhir || db.fotoAkhir || null
 });
 
 const mapFeedbackToFE = (db) => ({
   ...db,
-  noStruk: db.no_struk,
-  tampilWeb: db.tampil_web
+  noStruk: db.no_struk !== undefined ? db.no_struk : (db.noStruk || ''),
+  tampilWeb: db.tampil_web !== undefined ? db.tampil_web : (db.tampilWeb !== undefined ? db.tampilWeb : true)
 });
 
 const mapFaqToFE = (db) => ({
   ...db,
-  tampilWeb: db.tampil_web
+  tampilWeb: db.tampil_web !== undefined ? db.tampil_web : (db.tampilWeb !== undefined ? db.tampilWeb : true)
 });
 
 const mapTokoToFE = (db) => {
-  if (!db || !db.id) return {};
+  if (!db) return SEED_TOKO;
   return {
     ...db,
-    nama: db.nama_toko,
-    noWA: db.wa,
-    linkMaps: db.map_link,
-    jamOperasional: [
+    nama: db.nama_toko || db.nama || SEED_TOKO.nama,
+    noWA: db.wa || db.noWA || SEED_TOKO.noWA,
+    linkMaps: db.map_link || db.linkMaps || SEED_TOKO.linkMaps,
+    jamOperasional: db.jamOperasional || [
       { hari: 'Setiap Hari', buka: db.jam_buka || '09:00', tutup: db.jam_tutup || '21:00' }
     ]
   };
 };
 
+const SEED_SHOES = SEED_TRANSACTIONS.flatMap(t =>
+  (t.sepatu || []).map(s => ({
+    ...s,
+    trx_id: t.id,
+    fotoAwal: s.fotoAwal || null,
+    fotoAkhir: s.fotoAkhir || null
+  }))
+);
+
+const loadStorage = (key, fallback) => {
+  try {
+    const item = localStorage.getItem(key);
+    if (!item) return fallback;
+    const parsed = JSON.parse(item);
+    if (Array.isArray(fallback) && Array.isArray(parsed) && parsed.length === 0) {
+      return fallback;
+    }
+    return parsed;
+  } catch {
+    return fallback;
+  }
+};
+
+const saveStorage = (key, value) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    console.warn(`Error saving ${key} to localStorage:`, err);
+  }
+};
+
 export function AppProvider({ children }) {
-  const [users, setUsers] = useState([]);
-  const [services, setServices] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  const [shoes, setShoes] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [feedbacks, setFeedbacks] = useState([]);
-  const [faq, setFaq] = useState([]);
-  const [toko, setToko] = useState({});
+  const [users, setUsers] = useState(() => loadStorage('rcs_users', SEED_USERS));
+  const [services, setServices] = useState(() => loadStorage('rcs_services', SEED_SERVICES));
+  const [transactions, setTransactions] = useState(() => loadStorage('rcs_transactions', SEED_TRANSACTIONS));
+  const [shoes, setShoes] = useState(() => loadStorage('rcs_shoes', SEED_SHOES));
+  const [expenses, setExpenses] = useState(() => loadStorage('rcs_expenses', SEED_EXPENSES));
+  const [feedbacks, setFeedbacks] = useState(() => loadStorage('rcs_feedbacks', SEED_FEEDBACKS));
+  const [faq, setFaq] = useState(() => loadStorage('rcs_faq', SEED_FAQ));
+  const [toko, setToko] = useState(() => loadStorage('rcs_toko', SEED_TOKO));
   
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -75,10 +116,19 @@ export function AppProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
     return localStorage.getItem('rcs_theme') || 'system';
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => { localStorage.setItem('rcs_theme', theme); }, [theme]);
   useEffect(() => { localStorage.setItem('rcs_currentUser', JSON.stringify(currentUser)); }, [currentUser]);
+
+  useEffect(() => { saveStorage('rcs_users', users); }, [users]);
+  useEffect(() => { saveStorage('rcs_services', services); }, [services]);
+  useEffect(() => { saveStorage('rcs_transactions', transactions); }, [transactions]);
+  useEffect(() => { saveStorage('rcs_shoes', shoes); }, [shoes]);
+  useEffect(() => { saveStorage('rcs_expenses', expenses); }, [expenses]);
+  useEffect(() => { saveStorage('rcs_feedbacks', feedbacks); }, [feedbacks]);
+  useEffect(() => { saveStorage('rcs_faq', faq); }, [faq]);
+  useEffect(() => { saveStorage('rcs_toko', toko); }, [toko]);
 
   // Theme
   const setTheme = useCallback((t) => {
@@ -93,12 +143,11 @@ export function AppProvider({ children }) {
 
   useEffect(() => { setTheme(theme); }, [theme, setTheme]);
 
-  // Initial Fetch
+  // Initial Fetch from Supabase (with fallback to seed data)
   useEffect(() => {
     const fetchAll = async () => {
-      setLoading(true);
       try {
-        const [u, s, t, sh, e, f, fq, tk] = await Promise.all([
+        const [u, s, t, sh, e, f, fq, tk] = await Promise.allSettled([
           supabase.from('users').select('*').order('created_at', { ascending: true }),
           supabase.from('services').select('*').order('created_at', { ascending: true }),
           supabase.from('transactions').select('*').order('created_at', { ascending: false }),
@@ -109,34 +158,42 @@ export function AppProvider({ children }) {
           supabase.from('toko_settings').select('*').limit(1).single()
         ]);
         
-        if (u.data) setUsers(u.data);
-        if (s.data) setServices(s.data.map(mapServiceToFE));
-        if (t.data) setTransactions(t.data.map(mapTransactionToFE));
-        if (sh.data) setShoes(sh.data.map(mapShoeToFE));
-        if (e.data) setExpenses(e.data);
-        if (f.data) setFeedbacks(f.data.map(mapFeedbackToFE));
-        if (fq.data) setFaq(fq.data.map(mapFaqToFE));
-        if (tk.data) setToko(mapTokoToFE(tk.data));
+        if (u.status === 'fulfilled' && u.value?.data && u.value.data.length > 0) setUsers(u.value.data);
+        if (s.status === 'fulfilled' && s.value?.data && s.value.data.length > 0) setServices(s.value.data.map(mapServiceToFE));
+        if (t.status === 'fulfilled' && t.value?.data && t.value.data.length > 0) setTransactions(t.value.data.map(mapTransactionToFE));
+        if (sh.status === 'fulfilled' && sh.value?.data && sh.value.data.length > 0) setShoes(sh.value.data.map(mapShoeToFE));
+        if (e.status === 'fulfilled' && e.value?.data && e.value.data.length > 0) setExpenses(e.value.data);
+        if (f.status === 'fulfilled' && f.value?.data && f.value.data.length > 0) setFeedbacks(f.value.data.map(mapFeedbackToFE));
+        if (fq.status === 'fulfilled' && fq.value?.data && fq.value.data.length > 0) setFaq(fq.value.data.map(mapFaqToFE));
+        if (tk.status === 'fulfilled' && tk.value?.data && tk.value.data.id) setToko(mapTokoToFE(tk.value.data));
       } catch (err) {
-        console.error('Error fetching data:', err);
+        console.warn('Supabase offline or unreachable, using local seed data:', err);
       }
-      setLoading(false);
     };
     fetchAll();
   }, []);
 
   // Auth
   const login = async (username, password) => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('username', username)
-      .eq('password', password)
-      .eq('status', true)
-      .single();
-    if (data && !error) {
-      setCurrentUser(data);
-      return data;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', username)
+        .eq('password', password)
+        .eq('status', true)
+        .single();
+      if (data && !error) {
+        setCurrentUser(data);
+        return data;
+      }
+    } catch (e) {
+      console.warn('Supabase login error, checking local users:', e);
+    }
+    const localUser = users.find(u => u.username === username && u.password === password && u.status);
+    if (localUser) {
+      setCurrentUser(localUser);
+      return localUser;
     }
     return null;
   };
@@ -159,6 +216,7 @@ export function AppProvider({ children }) {
   // Transactions
   const addTransaction = async (data) => {
     const kode = generateTrxCode();
+    const newTrxId = 'trx_' + Date.now();
     const trxData = {
       kode,
       pelanggan: data.pelanggan,
@@ -174,35 +232,62 @@ export function AppProvider({ children }) {
       created_by: currentUser?.id || null
     };
 
-    const { data: newTrx, error } = await supabase.from('transactions').insert([trxData]).select().single();
-    if (error || !newTrx) throw error;
+    let savedTrx = { id: newTrxId, ...trxData };
+    try {
+      const { data: newTrx, error } = await supabase.from('transactions').insert([trxData]).select().single();
+      if (!error && newTrx) savedTrx = newTrx;
+    } catch (err) {
+      console.warn('Supabase offline, saving transaction locally:', err);
+    }
 
-    const shoePromises = data.sepatu.map((s, i) => {
-      const trackBase = generateTrackingCode();
-      const trackNum = parseInt(trackBase.replace('RCS-', ''), 10) + i;
-      const stages = data.metode === 'jemput-antar' ? STAGES_JEMPUT_ANTAR : STAGES_STANDARD;
-      return supabase.from('shoes').insert([{
-        trx_id: newTrx.id,
+    const stages = data.metode === 'jemput-antar' ? STAGES_JEMPUT_ANTAR : STAGES_STANDARD;
+    const trackBase = generateTrackingCode();
+    const baseNum = parseInt(trackBase.replace('RCS-', ''), 10) || 1;
+
+    const newShoes = data.sepatu.map((s, i) => {
+      const trackingCode = `RCS-${(baseNum + i).toString().padStart(4, '0')}`;
+      return {
+        id: 'shoe_' + Date.now() + '_' + i,
+        trx_id: savedTrx.id,
         jenis: s.jenis,
         treatment: s.treatment,
         harga: s.harga || 0,
         estimasi: s.estimasi || new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
         addons: s.addons || [],
-        tracking: `RCS-${trackNum.toString().padStart(4, '0')}`,
+        tracking: trackingCode,
         stage: 1,
         stages: stages,
         riwayat: [{ stage: stages[0], timestamp: new Date().toISOString(), by: currentUser?.nama || 'System' }],
-        foto_awal: s.fotoAwal || null,
+        fotoAwal: s.fotoAwal || null,
+        fotoAkhir: null,
         catatan: ''
-      }]).select().single();
+      };
     });
 
-    const res = await Promise.all(shoePromises);
-    const newShoes = res.map(r => r.data);
-    
-    setTransactions([mapTransactionToFE(newTrx), ...transactions]);
-    setShoes([...newShoes.map(mapShoeToFE), ...shoes]);
-    return { ...mapTransactionToFE(newTrx), sepatu: newShoes.map(mapShoeToFE) };
+    try {
+      const shoeDbPayload = newShoes.map(s => ({
+        trx_id: savedTrx.id,
+        jenis: s.jenis,
+        treatment: s.treatment,
+        harga: s.harga,
+        estimasi: s.estimasi,
+        addons: s.addons,
+        tracking: s.tracking,
+        stage: s.stage,
+        stages: s.stages,
+        riwayat: s.riwayat,
+        foto_awal: s.fotoAwal,
+        catatan: s.catatan
+      }));
+      await supabase.from('shoes').insert(shoeDbPayload);
+    } catch (err) {
+      console.warn('Supabase offline, saving shoes locally:', err);
+    }
+
+    const feTrx = mapTransactionToFE(savedTrx);
+    setTransactions(prev => [feTrx, ...prev]);
+    setShoes(prev => [...newShoes, ...prev]);
+    return { ...feTrx, sepatu: newShoes };
   };
 
   const updateShoeStage = async (trxId, shoeId, newStageIndex, optionalFotoAkhir = null) => {
@@ -216,13 +301,19 @@ export function AppProvider({ children }) {
       updatePayload.foto_akhir = optionalFotoAkhir;
     }
     
-    const { data, error } = await supabase.from('shoes').update(updatePayload).eq('id', shoeId).select().single();
-    if (data && !error) {
-      setShoes(shoes.map(s => s.id === shoeId ? mapShoeToFE(data) : s));
-      alert('Status sepatu berhasil diupdate!');
-    } else if (error) {
-      alert('Gagal mengupdate status: ' + error.message);
+    try {
+      await supabase.from('shoes').update(updatePayload).eq('id', shoeId);
+    } catch (err) {
+      console.warn('Supabase offline, updating stage locally:', err);
     }
+
+    setShoes(prev => prev.map(s => s.id === shoeId ? {
+      ...s,
+      stage: newStageIndex + 1,
+      riwayat: newRiwayat,
+      ...(optionalFotoAkhir ? { fotoAkhir: optionalFotoAkhir } : {})
+    } : s));
+    alert('Status sepatu berhasil diupdate!');
   };
 
   // Tracking Search
@@ -232,162 +323,246 @@ export function AppProvider({ children }) {
     
     const mappedTransactions = transactions.map(t => ({
       ...t,
-      sepatu: shoes.filter(s => s.trx_id === t.id)
+      sepatu: (t.sepatu && t.sepatu.length > 0) ? t.sepatu : shoes.filter(s => s.trx_id === t.id)
     }));
 
-    const byKode = mappedTransactions.filter(t => t.kode.toLowerCase().includes(q));
+    const byKode = mappedTransactions.filter(t => t.kode?.toLowerCase().includes(q));
     if (byKode.length > 0) return byKode;
-    const byTracking = mappedTransactions.filter(t => t.sepatu.some(s => s.tracking.toLowerCase().includes(q)));
+    const byTracking = mappedTransactions.filter(t => (t.sepatu || []).some(s => s.tracking?.toLowerCase().includes(q)));
     if (byTracking.length > 0) return byTracking;
-    const byHP = mappedTransactions.filter(t => t.hp.replace(/-/g, '').includes(q.replace(/-/g, '')));
+    const byHP = mappedTransactions.filter(t => t.hp && t.hp.replace(/-/g, '').includes(q.replace(/-/g, '')));
     if (byHP.length > 0) return byHP;
-    return mappedTransactions.filter(t => t.pelanggan.toLowerCase().includes(q));
+    return mappedTransactions.filter(t => t.pelanggan?.toLowerCase().includes(q));
   };
 
   const getJoinedTransactions = useCallback(() => {
     return transactions.map(t => ({
       ...t,
-      sepatu: shoes.filter(s => s.trx_id === t.id)
+      sepatu: (t.sepatu && t.sepatu.length > 0) ? t.sepatu : shoes.filter(s => s.trx_id === t.id)
     }));
   }, [transactions, shoes]);
 
   // Services
   const addService = async (data) => {
-    const dbData = {
-      kategori: data.kategori, nama: data.nama, harga: data.harga, catatan: data.catatan, tampil_web: data.tampil_di_web
-    };
-    const { data: newS, error } = await supabase.from('services').insert([dbData]).select().single();
-    if (newS && !error) {
-      setServices([...services, mapServiceToFE(newS)]);
-      alert('Layanan baru berhasil ditambahkan!');
-    } else if (error) alert('Gagal menambah layanan: ' + error.message);
+    const newId = 's_' + Date.now();
+    const newS = { id: newId, ...data, tampil_di_web: data.tampil_di_web !== undefined ? data.tampil_di_web : true };
+    try {
+      const dbData = {
+        kategori: data.kategori, nama: data.nama, harga: data.harga, catatan: data.catatan, tampil_web: data.tampil_di_web
+      };
+      const { data: dbRes, error } = await supabase.from('services').insert([dbData]).select().single();
+      if (!error && dbRes) {
+        setServices(prev => [...prev, mapServiceToFE(dbRes)]);
+        alert('Layanan baru berhasil ditambahkan!');
+        return mapServiceToFE(dbRes);
+      }
+    } catch (e) {
+      console.warn('Supabase offline, saving service locally:', e);
+    }
+    setServices(prev => [...prev, newS]);
+    alert('Layanan baru berhasil ditambahkan!');
     return newS;
   };
+
   const updateService = async (id, data) => {
-    const dbData = {
-      kategori: data.kategori, nama: data.nama, harga: data.harga, catatan: data.catatan, tampil_web: data.tampil_di_web
-    };
-    const { data: upS, error } = await supabase.from('services').update(dbData).eq('id', id).select().single();
-    if (upS && !error) {
-      setServices(services.map(s => s.id === id ? mapServiceToFE(upS) : s));
-      alert('Layanan berhasil diperbarui!');
-    } else if (error) alert('Gagal memperbarui layanan: ' + error.message);
+    try {
+      const dbData = {
+        kategori: data.kategori, nama: data.nama, harga: data.harga, catatan: data.catatan, tampil_web: data.tampil_di_web
+      };
+      await supabase.from('services').update(dbData).eq('id', id);
+    } catch (e) {
+      console.warn('Supabase offline, updating service locally:', e);
+    }
+    setServices(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
+    alert('Layanan berhasil diperbarui!');
   };
+
   const deleteService = async (id) => {
-    const { error } = await supabase.from('services').delete().eq('id', id);
-    if (!error) {
-      setServices(services.filter(s => s.id !== id));
-      alert('Layanan berhasil dihapus!');
-    } else alert('Gagal menghapus layanan: ' + error.message);
+    try {
+      await supabase.from('services').delete().eq('id', id);
+    } catch (e) {
+      console.warn('Supabase offline, deleting service locally:', e);
+    }
+    setServices(prev => prev.filter(s => s.id !== id));
+    alert('Layanan berhasil dihapus!');
   };
 
   // Expenses
   const addExpense = async (data) => {
-    const { data: newE, error } = await supabase.from('expenses').insert([data]).select().single();
-    if (newE && !error) {
-      setExpenses([newE, ...expenses]);
-      alert('Pengeluaran berhasil dicatat!');
-    } else if (error) alert('Gagal mencatat pengeluaran: ' + error.message);
+    const newId = 'e_' + Date.now();
+    const newE = { id: newId, ...data };
+    try {
+      const { data: dbRes, error } = await supabase.from('expenses').insert([data]).select().single();
+      if (!error && dbRes) {
+        setExpenses(prev => [dbRes, ...prev]);
+        alert('Pengeluaran berhasil dicatat!');
+        return dbRes;
+      }
+    } catch (e) {
+      console.warn('Supabase offline, saving expense locally:', e);
+    }
+    setExpenses(prev => [newE, ...prev]);
+    alert('Pengeluaran berhasil dicatat!');
     return newE;
   };
+
   const deleteExpense = async (id) => {
-    const { error } = await supabase.from('expenses').delete().eq('id', id);
-    if (!error) {
-      setExpenses(expenses.filter(e => e.id !== id));
-      alert('Pengeluaran berhasil dihapus!');
-    } else alert('Gagal menghapus pengeluaran: ' + error.message);
+    try {
+      await supabase.from('expenses').delete().eq('id', id);
+    } catch (e) {
+      console.warn('Supabase offline, deleting expense locally:', e);
+    }
+    setExpenses(prev => prev.filter(e => e.id !== id));
+    alert('Pengeluaran berhasil dihapus!');
   };
 
   // Toko
   const updateToko = async (data) => {
-    const dbData = {
-      nama_toko: data.nama || data.nama_toko,
-      alamat: data.alamat,
-      wa: data.noWA || data.wa,
-      map_link: data.linkMaps || data.map_link,
-      jam_buka: data.jamOperasional?.[0]?.buka || data.jam_buka,
-      jam_tutup: data.jamOperasional?.[0]?.tutup || data.jam_tutup,
-      instagram: data.instagram
+    const updated = {
+      ...toko,
+      ...data,
+      nama: data.nama || data.nama_toko || toko.nama,
+      noWA: data.noWA || data.wa || toko.noWA,
+      linkMaps: data.linkMaps || data.map_link || toko.linkMaps,
+      jamOperasional: data.jamOperasional || toko.jamOperasional
     };
-    const { data: upT, error } = await supabase.from('toko_settings').update(dbData).eq('id', toko?.id).select().single();
-    if (error) {
-      console.error('Update Toko Error:', error);
-      alert('Gagal menyimpan pengaturan toko: ' + error.message);
+    try {
+      const dbData = {
+        nama_toko: updated.nama,
+        alamat: updated.alamat,
+        wa: updated.noWA,
+        map_link: updated.linkMaps,
+        jam_buka: updated.jamOperasional?.[0]?.buka,
+        jam_tutup: updated.jamOperasional?.[0]?.tutup,
+        instagram: updated.instagram
+      };
+      await supabase.from('toko_settings').update(dbData).eq('id', toko?.id);
+    } catch (e) {
+      console.warn('Supabase offline, saving toko locally:', e);
     }
-    if (upT) {
-      setToko(mapTokoToFE(upT));
-      alert('Pengaturan toko berhasil diperbarui di database!');
-    }
+    setToko(updated);
+    alert('Pengaturan toko berhasil diperbarui!');
   };
 
   // Feedback
   const addFeedback = async (data) => {
-    const dbData = {
-      nama: data.nama,
-      no_struk: data.noStruk,
+    const newId = 'f_' + Date.now();
+    const newF = {
+      id: newId,
+      nama: data.nama || 'Anonim',
+      noStruk: data.noStruk || '',
       rating: data.rating,
-      komentar: data.komentar,
+      komentar: data.komentar || '',
       status: data.status || 'Belum Ditinjau',
-      tampil_web: data.tampilWeb || false
+      tampilWeb: data.tampilWeb || false,
+      tanggal: new Date().toISOString().split('T')[0]
     };
-    const { data: newF } = await supabase.from('feedbacks').insert([dbData]).select().single();
-    if (newF) setFeedbacks([mapFeedbackToFE(newF), ...feedbacks]);
+    try {
+      const dbData = {
+        nama: newF.nama,
+        no_struk: newF.noStruk,
+        rating: newF.rating,
+        komentar: newF.komentar,
+        status: newF.status,
+        tampil_web: newF.tampilWeb
+      };
+      const { data: dbRes } = await supabase.from('feedbacks').insert([dbData]).select().single();
+      if (dbRes) {
+        setFeedbacks(prev => [mapFeedbackToFE(dbRes), ...prev]);
+        return mapFeedbackToFE(dbRes);
+      }
+    } catch (e) {
+      console.warn('Supabase offline, saving feedback locally:', e);
+    }
+    setFeedbacks(prev => [newF, ...prev]);
     return newF;
   };
+
   const updateFeedback = async (id, data) => {
-    const dbData = {
-      status: data.status,
-      tampil_web: data.tampilWeb
-    };
-    const { data: upF, error } = await supabase.from('feedbacks').update(dbData).eq('id', id).select().single();
-    if (upF && !error) {
-      setFeedbacks(feedbacks.map(f => f.id === id ? mapFeedbackToFE(upF) : f));
-      alert('Status feedback berhasil diperbarui!');
-    } else if (error) alert('Gagal memperbarui feedback: ' + error.message);
+    try {
+      const dbData = {
+        status: data.status,
+        tampil_web: data.tampilWeb
+      };
+      await supabase.from('feedbacks').update(dbData).eq('id', id);
+    } catch (e) {
+      console.warn('Supabase offline, updating feedback locally:', e);
+    }
+    setFeedbacks(prev => prev.map(f => f.id === id ? { ...f, ...data } : f));
+    alert('Status feedback berhasil diperbarui!');
   };
 
   // FAQ
   const addFAQ = async (data) => {
-    const dbData = { pertanyaan: data.pertanyaan, jawaban: data.jawaban, tampil_web: data.tampilWeb };
-    const { data: newF, error } = await supabase.from('faqs').insert([dbData]).select().single();
-    if (newF && !error) {
-      setFaq([...faq, mapFaqToFE(newF)]);
-      alert('FAQ baru berhasil ditambahkan!');
-    } else if (error) alert('Gagal menambah FAQ: ' + error.message);
+    const newId = 'faq_' + Date.now();
+    const newF = { id: newId, pertanyaan: data.pertanyaan, jawaban: data.jawaban, tampilWeb: data.tampilWeb !== undefined ? data.tampilWeb : true };
+    try {
+      const dbData = { pertanyaan: data.pertanyaan, jawaban: data.jawaban, tampil_web: data.tampilWeb };
+      const { data: dbRes, error } = await supabase.from('faqs').insert([dbData]).select().single();
+      if (!error && dbRes) {
+        setFaq(prev => [...prev, mapFaqToFE(dbRes)]);
+        alert('FAQ baru berhasil ditambahkan!');
+        return mapFaqToFE(dbRes);
+      }
+    } catch (e) {
+      console.warn('Supabase offline, saving FAQ locally:', e);
+    }
+    setFaq(prev => [...prev, newF]);
+    alert('FAQ baru berhasil ditambahkan!');
     return newF;
   };
+
   const updateFAQ = async (id, data) => {
-    const dbData = { pertanyaan: data.pertanyaan, jawaban: data.jawaban, tampil_web: data.tampilWeb };
-    const { data: upF, error } = await supabase.from('faqs').update(dbData).eq('id', id).select().single();
-    if (upF && !error) {
-      setFaq(faq.map(f => f.id === id ? mapFaqToFE(upF) : f));
-      alert('FAQ berhasil diperbarui!');
-    } else if (error) alert('Gagal memperbarui FAQ: ' + error.message);
+    try {
+      const dbData = { pertanyaan: data.pertanyaan, jawaban: data.jawaban, tampil_web: data.tampilWeb };
+      await supabase.from('faqs').update(dbData).eq('id', id);
+    } catch (e) {
+      console.warn('Supabase offline, updating FAQ locally:', e);
+    }
+    setFaq(prev => prev.map(f => f.id === id ? { ...f, ...data } : f));
+    alert('FAQ berhasil diperbarui!');
   };
+
   const deleteFAQ = async (id) => {
-    const { error } = await supabase.from('faqs').delete().eq('id', id);
-    if (!error) {
-      setFaq(faq.filter(f => f.id !== id));
-      alert('FAQ berhasil dihapus!');
-    } else alert('Gagal menghapus FAQ: ' + error.message);
+    try {
+      await supabase.from('faqs').delete().eq('id', id);
+    } catch (e) {
+      console.warn('Supabase offline, deleting FAQ locally:', e);
+    }
+    setFaq(prev => prev.filter(f => f.id !== id));
+    alert('FAQ berhasil dihapus!');
   };
 
   // Staff
   const addUser = async (data) => {
-    const { data: newU, error } = await supabase.from('users').insert([data]).select().single();
-    if (newU && !error) {
-      setUsers([...users, newU]);
-      alert('Staf/Kasir baru berhasil ditambahkan!');
-    } else if (error) alert('Gagal menambah staf: ' + error.message);
+    const newId = 'u_' + Date.now();
+    const newU = { id: newId, ...data };
+    try {
+      const { data: dbRes, error } = await supabase.from('users').insert([data]).select().single();
+      if (!error && dbRes) {
+        setUsers(prev => [...prev, dbRes]);
+        alert('Staf/Kasir baru berhasil ditambahkan!');
+        return dbRes;
+      }
+    } catch (e) {
+      console.warn('Supabase offline, adding user locally:', e);
+    }
+    setUsers(prev => [...prev, newU]);
+    alert('Staf/Kasir baru berhasil ditambahkan!');
     return newU;
   };
+
   const updateUser = async (id, data) => {
-    const { data: upU, error } = await supabase.from('users').update(data).eq('id', id).select().single();
-    if (upU && !error) {
-      setUsers(users.map(u => u.id === id ? upU : u));
-      if (currentUser?.id === id) setCurrentUser(upU);
-      alert('Data profil berhasil diperbarui!');
-    } else if (error) alert('Gagal memperbarui profil: ' + error.message);
+    try {
+      await supabase.from('users').update(data).eq('id', id);
+    } catch (e) {
+      console.warn('Supabase offline, updating user locally:', e);
+    }
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...data } : u));
+    if (currentUser?.id === id) {
+      setCurrentUser(prev => ({ ...prev, ...data }));
+    }
+    alert('Data profil berhasil diperbarui!');
   };
 
   const value = {

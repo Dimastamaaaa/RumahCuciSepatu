@@ -64,6 +64,13 @@ export function FloatingHeader({ theme, setTheme, onTrackClick }) {
             <Search className="size-4" /> Lacak Sepatu
           </Button>
 
+          <Link
+            to="/login"
+            className={buttonVariants({ variant: 'outline', size: 'sm', className: 'rounded-xl font-medium gap-1.5 border-line hidden md:inline-flex' })}
+          >
+            Login Staff
+          </Link>
+
           {/* Mobile Menu */}
           <Sheet open={open} onOpenChange={setOpen}>
             <Button
@@ -98,10 +105,17 @@ export function FloatingHeader({ theme, setTheme, onTrackClick }) {
                   </a>
                 ))}
               </div>
-              <SheetFooter className="mt-auto p-4 border-t border-line-soft bg-canvas-alt/50">
+              <SheetFooter className="mt-auto p-4 border-t border-line-soft bg-canvas-alt/50 flex flex-col gap-2">
                 <Button className="w-full bg-primary rounded-xl" onClick={() => { onTrackClick(); setOpen(false); }}>
                   Lacak Sepatu
                 </Button>
+                <Link 
+                  to="/login" 
+                  className={buttonVariants({ variant: 'outline', className: 'w-full rounded-xl justify-center font-medium' })}
+                  onClick={() => setOpen(false)}
+                >
+                  Login Staff / Kasir
+                </Link>
               </SheetFooter>
             </SheetContent>
           </Sheet>

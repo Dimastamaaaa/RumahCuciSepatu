@@ -355,6 +355,7 @@ export default function LandingPage() {
               <a href="#faq">FAQ</a>
               <a href="#testimoni">Kata Pelanggan</a>
               <a href="#feedback">Beri Feedback</a>
+              <Link to="/login" style={{ color: 'var(--primary)', fontWeight: 600, display: 'inline-block', marginTop: 4 }}>Portal Staff & Kasir →</Link>
             </div>
             <div className="footer-col">
               <h4>Lokasi Outlet</h4>
